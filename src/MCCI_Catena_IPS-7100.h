@@ -65,6 +65,15 @@ getLocal(std::uint32_t v)
 // version of library, for use by clients in static_asserts
 static constexpr std::uint32_t kVersion = makeVersion(1,0,0,1);
 
+// For CRC16 checksum
+#define POLY 0x8408
+
+union bytesToPM
+    {
+    float f;
+    unsigned char byte[4];
+    };
+
 class cIPS7100
     {
 private:
@@ -129,12 +138,9 @@ public:
         Success = 0,
         NoWire,
         CommandWriteFailed,
-        CommandWriteBufferFailed,
-        InternalInvalidParameter,
         I2cReadShort,
         I2cReadRequest,
         I2cReadLong,
-        WakeupFailed,
         Busy,
         NotMeasuring,
         Crc,
@@ -161,8 +167,6 @@ private:
         "Success\0"
         "NoWire\0"
         "CommandWriteFailed\0"
-        "CommandWriteBufferFailed\0"
-        "InternalInvalidParameter\0"
         "I2cReadShort\0"
         "I2cReadRequest\0"
         "I2cReadLong\0"
@@ -216,10 +220,10 @@ public:
     void enableDebug(bool);
     bool enablePowerSavingMode(bool);
 
+    static constexpr bool isDebug() { return kfDebug; }
+
 protected:
-    // void readRegister(unsigned char, int, uint8_t[], bool checksum = false);
     void readRegister(cIPS7100::Command, int, uint8_t[], bool checksum = false);
-    // bool writeRegister(unsigned char, unsigned char);
     bool writeRegister(cIPS7100::Command, unsigned char);
     uint16_t getChecksum(uint8_t *byte, int);
     bool checkRunning()
