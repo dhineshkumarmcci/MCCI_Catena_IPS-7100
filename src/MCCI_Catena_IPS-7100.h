@@ -23,6 +23,7 @@ Author:
 #include <cstdint>
 #include <Wire.h>
 
+/// \brief namespace for this library
 namespace McciCatenaIps7100 {
 
 // create a version number for comparison
@@ -65,8 +66,8 @@ getLocal(std::uint32_t v)
 // version of library, for use by clients in static_asserts
 static constexpr std::uint32_t kVersion = makeVersion(1,0,0,1);
 
-// For CRC16 checksum
-#define POLY 0x8408
+/// \brief For CRC16 checksum
+#define CRC16 0x8408
 
 union bytesToPM
     {
@@ -74,6 +75,7 @@ union bytesToPM
     unsigned char byte[4];
     };
 
+/// \brief instance object for LTR-329als
 class cIPS7100
     {
 private:
@@ -132,12 +134,14 @@ public:
         ReadNetworkSerialKey                    =   0x79,
         };
 
-    // the errors
+
+    /// \brief Error codes
     enum class Error : std::uint8_t
         {
         Success = 0,
         NoWire,
         CommandWriteFailed,
+        InternalInvalidParameter,
         I2cReadShort,
         I2cReadRequest,
         I2cReadLong,
@@ -147,6 +151,7 @@ public:
         Uninitialized,
         };
 
+    /// \brief state of the meaurement engine
     enum class State : std::uint8_t
         {
         Uninitialized,      /// this->begin() has never succeeded.
@@ -167,6 +172,7 @@ private:
         "Success\0"
         "NoWire\0"
         "CommandWriteFailed\0"
+        "InternalInvalidParameter\0"
         "I2cReadShort\0"
         "I2cReadRequest\0"
         "I2cReadLong\0"
@@ -192,19 +198,38 @@ private:
         ;
 
 public:
+    /// \brief the constructor
     cIPS7100();
     virtual ~cIPS7100();
+
+    ///
+    /// \brief Power up the IPS 7100 sensor and start operation.
+    ///
+    /// \return
+    ///     \c true for success, \c false for failure (in which case the the last
+    ///     error is set to the error reason).
+    ///
     bool begin();
+
+    /// \brief end operation;
     void end();
+
+    /// \brief update fresh PC and PM data
     void updateData();
-    unsigned long *getPCData();
-    unsigned long getPC01Data();
-    unsigned long getPC03Data();
-    unsigned long getPC05Data();
-    unsigned long getPC10Data();
-    unsigned long getPC25Data();
-    unsigned long getPC50Data();
-    unsigned long getPC100Data();
+
+    /// \brief Return PC value
+    float *getPCData();
+
+    /// \brief Return PC value
+    float getPC01Data();
+
+    float getPC03Data();
+    float getPC05Data();
+    float getPC10Data();
+    float getPC25Data();
+    float getPC50Data();
+    float getPC100Data();
+
     float *getPMData();
     float getPM01Data();
     float getPM03Data();
@@ -213,19 +238,80 @@ public:
     float getPM25Data();
     float getPM50Data();
     float getPM100Data();
-    int getVref();
-    int getStatus();
-    bool enableFan(bool);
-    bool start();
-    void enableDebug(bool);
-    bool enablePowerSavingMode(bool);
 
+    /// \brief Return voltage reference
+    int getVref();
+
+    /// \brief Return current status of sensor 
+    int getStatus();
+
+    ///
+    /// \brief Return true if the fan is enabled
+    ///
+    /// \param [in] status is the new state (TRUE or FALSE)
+    ///
+    bool enableFan(bool status);
+
+    /// \brief Return true for a successful start register write
+    bool startMeasurement();
+
+    ///
+    /// \brief Return true if the power saving mode is enabled
+    ///
+    /// \param [in] status is the new state (TRUE or FALSE)
+    ///
+    bool enablePowerSavingMode(bool status);
+
+    /// \brief Return true if the debug is enabled
     static constexpr bool isDebug() { return kfDebug; }
 
 protected:
-    void readRegister(cIPS7100::Command, int, uint8_t[], bool checksum = false);
-    bool writeRegister(cIPS7100::Command, unsigned char);
-    uint16_t getChecksum(uint8_t *byte, int);
+    ///
+    /// \brief read a series of bytes starting with a given register.
+    ///
+    /// \param [in] r indicates the starting register to be read.
+    /// \param [out] pBuffer points to the buffer to receive the data
+    /// \param [in] nBuffer is the number of bytes to read.
+    ///
+    /// \return
+    ///     \c true for success, \c false for failure. The
+    ///     last error is set in case of error.
+    ///
+    bool readRegister(cIPS7100::Command command, int nBuffer, std::uint8_t *pBuffer, bool checksum = false);
+
+    ///
+    /// \brief Write a byte to a given register.
+    ///
+    /// \param [in] command selects the register to write
+    /// \param [in] value is the value to be written.
+    ///
+    /// \return
+    ///     \c true for success, \c false for failure. The
+    ///     last error is set in case of error.
+    ///
+    bool writeRegister(cIPS7100::Command command, unsigned char value);
+
+    /// \brief Return checksum.
+    ///
+    /// \param [in] byte points to the buffer to receive the data
+    /// \param [in] lenght is the number of bytes to read.
+    ///
+    uint16_t getChecksum(uint8_t *byte, int lenght);
+
+    ///
+    /// \brief Make sure the driver is running
+    ///
+    /// If not running, set last error to Error::Uninitialized, and return \c false.
+    /// Otherwise return \c true.
+    ///
+    /// Normally used in the following pattern:
+    ///
+    /// \code
+    ///     if (! this->checkRunning())
+    ///         return false;
+    ///     // otherwise do some work...
+    /// \endcode
+    ///
     bool checkRunning()
         {
         if (! this->isRunning())
@@ -235,15 +321,15 @@ protected:
         }
 
 private:
-    TwoWire *m_wire;                /// pointer to bus to be used for this device
-    std::uint32_t m_tReady;         /// estimated time next measurement will be ready (millis)
-    unsigned long m_pcValues[7] = {0, 0, 0, 0, 0, 0, 0};
-    float m_pmValues[7] = {0, 0, 0, 0, 0, 0, 0};
-    Address m_address;              /// I2C address to be used
-    Pin_t m_pinReady;               /// alert pin, or -1 if none.
-    Error m_lastError;              /// last error.
-    State m_state                   /// current state
-        { State::Uninitialized };   // initially not yet started.
+    TwoWire *m_wire;                                        ///< pointer to bus to be used for this device
+    std::uint32_t m_tReady;                                 ///< estimated time next measurement will be ready (millis)
+    float m_pcValues[7] = {0, 0, 0, 0, 0, 0, 0};    ///< buffer to store PC values
+    float m_pmValues[7] = {0, 0, 0, 0, 0, 0, 0};            ///< buffer to store PM values
+    Address m_address;                                      ///< I2C address to be used
+    Pin_t m_pinReady;                                       ///< alert pin, or -1 if none.
+    Error m_lastError;                                      ///< last error.
+    State m_state                                           ///< current state
+        { State::Uninitialized };                           ///< initially not yet started.
 
     static constexpr std::uint16_t getUint16BE(const std::uint8_t *p)
         {
