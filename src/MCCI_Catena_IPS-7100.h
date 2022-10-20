@@ -26,7 +26,7 @@ Author:
 /// \brief namespace for this library
 namespace McciCatenaIps7100 {
 
-// create a version number for comparison
+/// \brief create a version constant uint32_t
 static constexpr std::uint32_t
 makeVersion(
     std::uint8_t major, std::uint8_t minor, std::uint8_t patch, std::uint8_t local = 0
@@ -35,54 +35,56 @@ makeVersion(
     return ((std::uint32_t)major << 24u) | ((std::uint32_t)minor << 16u) | ((std::uint32_t)patch << 8u) | (std::uint32_t)local;
     }
 
-// extract major number from version
+/// \brief extract major number from version
 static constexpr std::uint8_t
 getMajor(std::uint32_t v)
     {
     return std::uint8_t(v >> 24u);
     }
 
-// extract minor number from version
+/// \brief extract minor number from version
 static constexpr std::uint8_t
 getMinor(std::uint32_t v)
     {
     return std::uint8_t(v >> 16u);
     }
 
-// extract patch number from version
+/// \brief extract patch number from version
 static constexpr std::uint8_t
 getPatch(std::uint32_t v)
     {
     return std::uint8_t(v >> 8u);
     }
 
-// extract local number from version
+/// \brief extract local number from version
 static constexpr std::uint8_t
 getLocal(std::uint32_t v)
     {
     return std::uint8_t(v);
     }
 
-// version of library, for use by clients in static_asserts
+/// \brief version of library, for use by clients in static_asserts
 static constexpr std::uint32_t kVersion = makeVersion(1,0,0,1);
 
-/// \brief For CRC16 checksum
+// for CRC16 checksum
 #define CRC16 0x8408
 
 union bytesToPM
     {
-    float f;
+    float value;
     unsigned char byte[4];
     };
 
-/// \brief instance object for LTR-329als
+/// \brief instance object for IPS-7100 Sensor
 class cIPS7100
     {
 private:
     static constexpr bool kfDebug = false;
 
 public:
-// the address type:
+    ///
+    /// \brief the address type
+    ///
     enum class Address : std::int8_t
         {
         Error = -1,
@@ -92,7 +94,13 @@ public:
     // the type for pin assignments, in case the ready pin is used
     using Pin_t = std::int8_t;
 
-    // constructor
+    ///
+    /// \brief the constructor
+    ///
+    /// \param [in] wire is the TwoWire bus to use for this sensor.
+    /// \param [in] Address is the device address.
+    /// \param [in] pinReady is the alert pin. It is set -1 if there is none
+    ///
     cIPS7100(TwoWire &wire, Address Address = Address::IPS7100, Pin_t pinReady = -1)
         : m_wire(&wire)
         , m_address(Address)
@@ -105,35 +113,32 @@ public:
     cIPS7100(const cIPS7100&&) = delete;
     cIPS7100& operator=(const cIPS7100&&) = delete;
 
-    // I2C commands
+    /// \brief I2C commands
     enum class Command : std::int16_t
         {
         // sorted in ascending numerical order.
-        StartContinuousMeasurement              =   0x10,       // Takes n= 1, 2 and 3 for 200ms, 500ms and 1,000ms respectivly. Takes 0 for stop measurement
-        ReadPC                                  =   0x11,
-        ReadPM                                  =   0x12,
-        SetCleaningInterval                     =   0x21,
-        CommandMode                             =   0x22,
-        PowerSavingMode                         =   0x23,
-        SetDataUnit                             =   0x24,
-        SetVth                                  =   0x26,
-        SetVref                                 =   0x29,
-        SetFan                                  =   0x2B,
-        StartCleaning                           =   0x2C,
-        Reset                                   =   0x2D,
-        FactoryReset                            =   0x2E,
-        ReadCleaningInterval                    =   0x61,
-        ReadMode                                =   0x62,
-        ReadDataUnit                            =   0x64,
-        ReadStart                               =   0x65,
-        ReadVth                                 =   0x66,
-        ReadVref                                =   0x69,
-        ReadStatus                              =   0x6A,
-        ReadSerialNumber                        =   0x77,
-        ReadRevisionNumber                      =   0x78,
-        ReadNetworkSerialKey                    =   0x79,
+        StartStop                               =   0x10,       ///< Takes n= 1, 2 and 3 for 200ms, 500ms and 1,000ms respectivly for start measurement. Takes 0 for stop measurement
+        ReadPC                                  =   0x11,       ///< Reads PC value
+        ReadPM                                  =   0x12,       ///< Reads PM value
+        SetCleaningInterval                     =   0x21,       ///< Set cleaning interval
+        PowerSavingMode                         =   0x23,       ///< Enable or disable power saving mode
+        SetDataUnit                             =   0x24,       ///< Set PC and PM data unit
+        SetVth                                  =   0x26,       ///< Set detection range control voltage 
+        SetVref                                 =   0x29,       ///< Set sensitivity control voltage
+        SetFan                                  =   0x2B,       ///< Enable or disable fan
+        SetCleaning                             =   0x2C,       ///< Enable or disable cleaning
+        Reset                                   =   0x2D,       ///< Resets the sensor module 
+        FactoryReset                            =   0x2E,       ///< Restore all factory default settings
+        ReadCleaningInterval                    =   0x61,       ///< Read cleaning interval
+        ReadDataUnit                            =   0x64,       ///< Read PC and PM data unit
+        ReadStartStop                           =   0x65,       ///< Read measurement period in ms
+        ReadVth                                 =   0x66,       ///< Detection range control voltage reading
+        ReadVref                                =   0x69,       ///< Sensitivity control voltage reading
+        ReadStatus                              =   0x6A,       ///< Read status for fan, cleaning, PSM and communication mode
+        ReadSerialNumber                        =   0x77,       ///< Read Serial Number
+        ReadRevisionNumber                      =   0x78,       ///< Read Version number
+        ReadNetworkSerialKey                    =   0x79,       ///< Network Serial key 
         };
-
 
     /// \brief Error codes
     enum class Error : std::uint8_t
@@ -154,12 +159,12 @@ public:
     /// \brief state of the meaurement engine
     enum class State : std::uint8_t
         {
-        Uninitialized,      /// this->begin() has never succeeded.
-        End,                /// this->begin() succeeded, followed by this->end()
-        Initial,            /// initial after begin [indeterminate]
-        Idle,               /// idle (not measuring)
-        Triggered,          /// continuous measurement running, no data available.
-        Ready,              /// continuous measurement running, data availble.
+        Uninitialized,      ///< this->begin() has never succeeded.
+        End,                ///< this->begin() succeeded, followed by this->end()
+        Initial,            ///< initial after begin [indeterminate]
+        Idle,               ///< idle (not measuring)
+        Triggered,          ///< continuous measurement running, no data available.
+        Ready,              ///< continuous measurement running, data availble.
         };
 
 private:
@@ -205,7 +210,7 @@ public:
     ///
     /// \brief Power up the IPS 7100 sensor and start operation.
     ///
-    /// \return
+    /// \returns
     ///     \c true for success, \c false for failure (in which case the the last
     ///     error is set to the error reason).
     ///
@@ -218,25 +223,51 @@ public:
     void updateData();
 
     /// \brief Return PC value
-    float *getPCData();
+    unsigned long *getPCData();
 
-    /// \brief Return PC value
-    float getPC01Data();
+    /// \brief Return PC value of range: ≤0.1um 
+    unsigned long getPC01Data();
 
-    float getPC03Data();
-    float getPC05Data();
-    float getPC10Data();
-    float getPC25Data();
-    float getPC50Data();
-    float getPC100Data();
+    /// \brief Return PC value of range: 0.1 - 0.3um
+    unsigned long getPC03Data();
 
+    /// \brief Return PC value of range: 0.3 - 0.5um
+    unsigned long getPC05Data();
+
+    /// \brief Return PC value of range: 0.5 - 1.0um
+    unsigned long getPC10Data();
+
+    /// \brief Return PC value of range: 1.0 - 2.5um
+    unsigned long getPC25Data();
+
+    /// \brief Return PC value of range: 2.5 - 5.0um
+    unsigned long getPC50Data();
+
+    /// \brief Return PC value of range: 5.0 - 10um
+    unsigned long getPC100Data();
+
+    /// \brief Return PM value
     float *getPMData();
+
+    /// \brief Return PM value of range: ≤0.1um
     float getPM01Data();
+
+    /// \brief Return PM value of range: ≤0.3um
     float getPM03Data();
+
+    /// \brief Return PM value of range: ≤0.5um
     float getPM05Data();
+
+    /// \brief Return PM value of range: ≤1.0um
     float getPM10Data();
+
+    /// \brief Return PM value of range: ≤2.5um
     float getPM25Data();
+
+    /// \brief Return PM value of range: ≤5.0um
     float getPM50Data();
+
+    /// \brief Return PM value of range: ≤10um
     float getPM100Data();
 
     /// \brief Return voltage reference
@@ -248,19 +279,94 @@ public:
     ///
     /// \brief Return true if the fan is enabled
     ///
-    /// \param [in] status is the new state (TRUE or FALSE)
+    /// \param [in] status is the new state
+    /// status '0' for disable and status '1'for enable
     ///
     bool enableFan(bool status);
 
-    /// \brief Return true for a successful start register write
+    /// \brief Return true for a successful write
     bool startMeasurement();
 
     ///
     /// \brief Return true if the power saving mode is enabled
     ///
-    /// \param [in] status is the new state (TRUE or FALSE)
+    /// \param [in] status is the new state
+    /// status '0' for disable and status '1'for enable
     ///
     bool enablePowerSavingMode(bool status);
+
+    ///
+    /// \brief Return true if the fan is enabled
+    ///
+    /// \param [in] status is the new state
+    /// status '0' for disable and status '1'for enable
+    ///
+    bool enableCleaning(bool status);
+
+    ///
+    /// \brief Return true if the fan is enabled
+    ///
+    /// \param [in] unit is measuring unit for PC and PM values
+    /// PC units: unit '0' for '#/L' unit '1' for '#/ft3' unit '2' for ' #/m3' unit '3' for '#/L'
+    /// PM units: unit '0' for 'ug/m3' unit '1' for 'ug/ft3' unit '2' for 'ug/m3' unit '3' for 'ug/L'
+    ///
+    bool setDataUnit(int unit);
+
+    ///
+    /// \brief Return PC and PM data unit
+    ///
+    int getDataUnit();
+
+    ///
+    /// \brief Return true if the fan is enabled
+    ///
+    /// \param [in] interval is period of time between cleaning in seconds
+    /// Default cleaning interval is 604800 (1 Week)
+    ///
+    bool setCleaningInterval(unsigned long interval);
+
+    ///
+    /// \brief Return cleaning interval
+    ///
+    unsigned long getCleaningInterval();
+
+    ///
+    /// \brief Read serial number
+    ///
+    /// \param [in] data is a buffer to store serial number
+    ///
+    void getSerial(uint8_t* data);
+
+    ///
+    /// \brief Read version number
+    ///
+    /// \param [in] data is a buffer to store version number
+    ///
+    void getVersion(uint8_t* data);
+
+    /// \brief return true if the driver is running.
+    bool isRunning() const
+        {
+        return this->m_state > State::End;
+        }
+
+    ///
+    /// \brief Change state of driver.
+    ///
+    /// \param [in] s is the new state
+    ///
+    /// \details
+    ///     This function changes the recorded state of the driver instance.
+    ///     When debugging, this might also log state changes; you can do that
+    ///     by overriding this method in a derived class.
+    ///
+    virtual void setState(State s)
+        {
+        this->m_state = s;
+        }
+
+    /// \brief return current state of driver.
+    State getState() const { return this->m_state; }
 
     /// \brief Return true if the debug is enabled
     static constexpr bool isDebug() { return kfDebug; }
@@ -269,7 +375,7 @@ protected:
     ///
     /// \brief read a series of bytes starting with a given register.
     ///
-    /// \param [in] r indicates the starting register to be read.
+    /// \param [in] command indicates the read operation to be performed.
     /// \param [out] pBuffer points to the buffer to receive the data
     /// \param [in] nBuffer is the number of bytes to read.
     ///
@@ -277,19 +383,19 @@ protected:
     ///     \c true for success, \c false for failure. The
     ///     last error is set in case of error.
     ///
-    bool readRegister(cIPS7100::Command command, int nBuffer, std::uint8_t *pBuffer, bool checksum = false);
+    bool readResponse(cIPS7100::Command command, int nBuffer, std::uint8_t *pBuffer, bool checksum = false);
 
     ///
-    /// \brief Write a byte to a given register.
+    /// \brief Write a byte of command.
     ///
-    /// \param [in] command selects the register to write
+    /// \param [in] command indicates the write operation to be performed
     /// \param [in] value is the value to be written.
     ///
     /// \return
     ///     \c true for success, \c false for failure. The
     ///     last error is set in case of error.
     ///
-    bool writeRegister(cIPS7100::Command command, unsigned char value);
+    bool writeCommand(cIPS7100::Command command, unsigned char value);
 
     /// \brief Return checksum.
     ///
@@ -323,25 +429,13 @@ protected:
 private:
     TwoWire *m_wire;                                        ///< pointer to bus to be used for this device
     std::uint32_t m_tReady;                                 ///< estimated time next measurement will be ready (millis)
-    float m_pcValues[7] = {0, 0, 0, 0, 0, 0, 0};    ///< buffer to store PC values
+    unsigned long m_pcValues[7] = {0, 0, 0, 0, 0, 0, 0};    ///< buffer to store PC values
     float m_pmValues[7] = {0, 0, 0, 0, 0, 0, 0};            ///< buffer to store PM values
     Address m_address;                                      ///< I2C address to be used
     Pin_t m_pinReady;                                       ///< alert pin, or -1 if none.
     Error m_lastError;                                      ///< last error.
     State m_state                                           ///< current state
         { State::Uninitialized };                           ///< initially not yet started.
-
-    static constexpr std::uint16_t getUint16BE(const std::uint8_t *p)
-        {
-        return (p[0] << 8) + p[1];
-        }
-
-    static constexpr std::int16_t getInt16BE(const std::uint8_t *p)
-        {
-        return std::int16_t((p[0] << 8) + p[1]);
-        }
-
-    static float getFloat32BE(const std::uint8_t *p);
     };
 
 } // end namespace McciCatenaIps7100
