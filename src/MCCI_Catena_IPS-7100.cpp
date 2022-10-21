@@ -67,15 +67,15 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
     unsigned nResult;
     uint8_t nReadFrom;
 
-    if (! this->setState(State::Triggered));
+    if (this->getState() != State::Triggered);
         {
         return this->setLastError(Error::NotMeasuring);
         }
 
     while (!checksumPass)
         {
-        this->m_wire->beginTransmissions(std::uint8_t(this->m_address));
-        this->m_wire->write(command);
+        this->m_wire->beginTransmission(std::uint8_t(this->m_address));
+        this->m_wire->write(std::uint8_t(command));
 
         if (this->m_wire->endTransmission() != 0)
             {
@@ -96,7 +96,7 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
 
         for (unsigned n = 0; n < nResult; n++)
             {
-            pBuffer[n] = this->m_wire->.read();
+            pBuffer[n] = this->m_wire->read();
             }
 
         if (nResult != nBuffer)
@@ -123,7 +123,7 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
             break;
             }
 
-        uint16_t messageChecksum = this->get_checksum(pBuffer, nBuffer - 2);
+        uint16_t messageChecksum = this->getChecksum(pBuffer, nBuffer - 2);
         uint16_t receivedChecksum = (pBuffer[nBuffer - 2] * 256) + pBuffer[nBuffer - 1];
 
         if (this->isDebug())
@@ -155,8 +155,8 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
 
 boolean cIPS7100::writeCommand(cIPS7100::Command command, unsigned char value)
     {
-    this->m_wire->beginTransmissions(std::uint8_t(this->m_address));
-    this->m_wire->write(command);
+    this->m_wire->beginTransmission(std::uint8_t(this->m_address));
+    this->m_wire->write(std::uint8_t(command));
     this->m_wire->write(value);
 
     if (this->m_wire->endTransmission() != 0)
@@ -339,13 +339,18 @@ int cIPS7100::getStatus()
 bool cIPS7100::setDataUnit(int unit)
     {
     // Set data unit
-    uint8_t data[3];
-    unsigned short int unit;
+    bool result;
 
-    this->read_i2c(Command::SetDataUnit, sizeof(data), data, true);
+    if (unit >= 0 && unit <= 3)
+        {
+        result = this->writeCommand(Command::SetDataUnit, unit);
+        }
+    else
+        {
+        result = this->setLastError(Error::NoWire);
+        }
 
-    unit = data[0];
-    return unit;
+    return result;
     }
 
 int cIPS7100::getDataUnit()
@@ -354,7 +359,7 @@ int cIPS7100::getDataUnit()
     uint8_t data[3];
     unsigned short int unit;
 
-    this->read_i2c(Command::ReadDataUnit, 3, data, true);
+    this->readResponse(Command::ReadDataUnit, sizeof(data), data, true);
 
     unit = data[0];
     return unit;
@@ -362,13 +367,13 @@ int cIPS7100::getDataUnit()
 
 void cIPS7100::getSerial(uint8_t* data)
     {
-    this->read_i2c(Command::ReadSerialNumber, 19, data, true);
+    this->readResponse(Command::ReadSerialNumber, sizeof(data), data, true);
     data[17] = 0;
     }
 
 void cIPS7100::getVersion(uint8_t* data)
     {
-    this->read_i2c(Command::ReadRevisionNumber, 9, data, true);
+    this->readResponse(Command::ReadRevisionNumber, sizeof(data), data, true);
     data[7] = 0;
     }
 

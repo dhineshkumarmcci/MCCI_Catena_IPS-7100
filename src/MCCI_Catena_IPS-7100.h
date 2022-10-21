@@ -114,7 +114,7 @@ public:
     cIPS7100& operator=(const cIPS7100&&) = delete;
 
     /// \brief I2C commands
-    enum class Command : std::int16_t
+    enum class Command : std::uint8_t
         {
         // sorted in ascending numerical order.
         StartStop                               =   0x10,       ///< Takes n= 1, 2 and 3 for 200ms, 500ms and 1,000ms respectivly for start measurement. Takes 0 for stop measurement
@@ -154,6 +154,7 @@ public:
         NotMeasuring,
         Crc,
         Uninitialized,
+        InvalidDataUnit,
         };
 
     /// \brief state of the meaurement engine
@@ -186,6 +187,7 @@ private:
         "NotMeasuring\0"
         "Crc\0"
         "Uninitialized\0"
+        "InvalidDataUnit\0"
         ;
 
     /// \brief table of state names, '\0'-separated.
@@ -367,6 +369,19 @@ public:
 
     /// \brief return current state of driver.
     State getState() const { return this->m_state; }
+
+    /// \brief get the last error reported from this instance
+    Error getLastError() const
+        {
+        return this->m_lastError;
+        }
+
+    /// \brief set the last error code.
+    bool setLastError(Error e)
+        {
+        this->m_lastError = e;
+        return e == Error::Success;
+        }
 
     /// \brief Return true if the debug is enabled
     static constexpr bool isDebug() { return kfDebug; }
