@@ -69,6 +69,15 @@ void setup()
         delay(1000);
         }
 
+    /*if (!gIps.begin())
+        {
+        Serial.println("7100 Particle Sensor not connected!\n");
+        }
+    else
+        {
+        Serial.println("7100 Particle Sensor connected successfully!\n");
+        }*/
+
     Serial.println("7100 Particle Sensor connected successfully!\n");
 
     delay (2000);
@@ -101,10 +110,7 @@ void loop()
     int vref = gIps.getVref();
     Serial.print("Vref    : ");
     Serial.println(vref);
-
-    // Print PM10 via USB serial
-    Serial.print("PM10    : ");
-    Serial.println(gIps.getPM50Data());
+    Serial.println("");
 
     // Print PM1.0 via USB serial
     Serial.print("PM0.1   : ");
@@ -127,12 +133,13 @@ void loop()
     Serial.println(gIps.getPM25Data());
 
     // Print PM10 via USB serial
-    Serial.print("PM5.0    : ");
+    Serial.print("PM5.0   : ");
     Serial.println(gIps.getPM50Data());
 
     // Print PM10 via USB serial
     Serial.print("PM10    : ");
     Serial.println(gIps.getPM100Data());
+    Serial.println("");
 
     // Print PC1.0 via USB serial
     Serial.print("PC0.1   : "); 
@@ -159,7 +166,7 @@ void loop()
     Serial.println(gIps.getPC50Data());
 
     // Print PC1.0 via USB serial
-    Serial.print("PC10   : "); 
+    Serial.print("PC10    : "); 
     Serial.println(gIps.getPC100Data());
 
     Serial.println("");
