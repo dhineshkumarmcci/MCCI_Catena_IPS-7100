@@ -23,6 +23,12 @@ Author:
 #include <cstdint>
 #include <Wire.h>
 
+union bytesToPM
+    {
+    float value;
+    unsigned char byte[4];
+    };
+
 /// \brief namespace for this library
 namespace McciCatenaIps7100 {
 
@@ -69,11 +75,11 @@ static constexpr std::uint32_t kVersion = makeVersion(1,0,0,1);
 // for CRC16 checksum
 #define CRC16 0x8408
 
-union bytesToPM
+/*union bytesToPM
     {
     float value;
     unsigned char byte[4];
-    };
+    };*/
 
 /// \brief instance object for IPS-7100 Sensor
 class cIPS7100
@@ -346,6 +352,11 @@ public:
     ///
     void getVersion(uint8_t* data);
 
+    ///
+    /// \brief Read event status
+    ///
+    uint16_t getEventStatus();
+
     /// \brief return true if the driver is running.
     bool isRunning() const
         {
@@ -446,6 +457,7 @@ private:
     std::uint32_t m_tReady;                                 ///< estimated time next measurement will be ready (millis)
     unsigned long m_pcValues[7] = {0, 0, 0, 0, 0, 0, 0};    ///< buffer to store PC values
     float m_pmValues[7] = {0, 0, 0, 0, 0, 0, 0};            ///< buffer to store PM values
+    uint16_t m_eventStatus = 0;                             ///< event status
     Address m_address;                                      ///< I2C address to be used
     Pin_t m_pinReady;                                       ///< alert pin, or -1 if none.
     Error m_lastError;                                      ///< last error.

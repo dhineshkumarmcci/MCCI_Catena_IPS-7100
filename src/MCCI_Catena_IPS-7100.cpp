@@ -199,6 +199,9 @@ void cIPS7100::updateData()
 
         this->m_pmValues[i] = PM.value;
         }
+
+    // Get event status
+    this->m_eventStatus = (pmRawValues[28] * 256) + pmRawValues[29];
     }
 
 // Get CRC16 checksum
@@ -311,6 +314,11 @@ float cIPS7100::getPM100Data()
     {
     return this->m_pmValues[6];
     }
+
+uint16_t cIPS7100::getEventStatus()
+{
+  return this->m_eventStatus;
+}
 
 int cIPS7100::getVref()
     {

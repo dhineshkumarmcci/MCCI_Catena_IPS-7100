@@ -102,12 +102,12 @@ void loop()
     gIps.updateData();
 
     // Print sensor status
-    int status = gIps.getStatus();
+    unsigned short int status = gIps.getStatus();
     Serial.print("STATUS  : ");
     Serial.println(status);
 
     // Print Vref value
-    int vref = gIps.getVref();
+    unsigned short int vref = gIps.getVref();
     Serial.print("Vref    : ");
     Serial.println(vref);
     Serial.println("");
