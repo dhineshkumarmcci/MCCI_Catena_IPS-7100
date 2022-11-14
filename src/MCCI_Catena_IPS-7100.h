@@ -292,8 +292,16 @@ public:
     ///
     bool enableFan(bool status);
 
+    ///
     /// \brief Return true for a successful write
-    bool startMeasurement();
+    ///
+    /// \param [in] timer is the measurement timer
+    /// timer '0' for stop measurement
+    /// timer '1' for 200ms
+    /// timer '2' for 500ms
+    /// timer '3' for 1000ms
+    ///
+    bool startMeasurement(int timer);
 
     ///
     /// \brief Return true if the power saving mode is enabled
@@ -461,8 +469,8 @@ private:
     Address m_address;                                      ///< I2C address to be used
     Pin_t m_pinReady;                                       ///< alert pin, or -1 if none.
     Error m_lastError;                                      ///< last error.
-    State m_state                                           ///< current state
-        { State::Uninitialized };                           ///< initially not yet started.
+    State m_state;                                           ///< current state
+        //{ State::Uninitialized };                           ///< initially not yet started.
     };
 
 } // end namespace McciCatenaIps7100

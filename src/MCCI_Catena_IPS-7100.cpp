@@ -44,14 +44,14 @@ bool cIPS7100::begin()
     this->m_wire->begin();
     this->setState(State::Initial);
 
-    bool result = this->startMeasurement();
-    return result;
+    return true;
     }
 
-bool cIPS7100::startMeasurement()
+bool cIPS7100::startMeasurement(int timer)
     {
-    bool result = this->writeCommand(Command::StartStop, 1);
+    bool result = this->writeCommand(Command::StartStop, timer);
     this->setState(State::Triggered);
+
     return result;
     }
 
@@ -67,8 +67,10 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
     unsigned nResult;
     uint8_t nReadFrom;
 
-    if (this->getState() != State::Triggered);
+    auto const state = this->getState();
+    if (state != State::Triggered)
         {
+        Serial.println("70");
         return this->setLastError(Error::NotMeasuring);
         }
 
@@ -79,6 +81,7 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
 
         if (this->m_wire->endTransmission() != 0)
             {
+            Serial.println("81");
             return this->setLastError(Error::CommandWriteFailed);
             }
 
@@ -86,13 +89,17 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
 
         if (nReadFrom != nBuffer)
             {
+            Serial.println("89");
             return this->setLastError(Error::I2cReadRequest);
             }
 
         nResult = this->m_wire->available();
 
         if (nResult > nBuffer)
+            {
+            Serial.println("97");
             return this->setLastError(Error::I2cReadLong);
+            }
 
         for (unsigned n = 0; n < nResult; n++)
             {
@@ -101,6 +108,7 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
 
         if (nResult != nBuffer)
             {
+            Serial.println("109");
             return this->setLastError(Error::I2cReadShort);
             }
 
@@ -142,7 +150,7 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
             }
         else
             {
-            // Checksum failed;
+            // Checksum failed
             if (this->isDebug())
                 {
                 Serial.println("Checksum Failed.");
@@ -316,9 +324,9 @@ float cIPS7100::getPM100Data()
     }
 
 uint16_t cIPS7100::getEventStatus()
-{
-  return this->m_eventStatus;
-}
+    {
+    return this->m_eventStatus;
+    }
 
 int cIPS7100::getVref()
     {

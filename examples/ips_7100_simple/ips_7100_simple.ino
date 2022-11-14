@@ -69,16 +69,16 @@ void setup()
         delay(1000);
         }
 
-    /*if (!gIps.begin())
+    Serial.println("7100 Particle Sensor connected successfully!\n");
+
+    if (!gIps.startMeasurement(1))
         {
-        Serial.println("7100 Particle Sensor not connected!\n");
+        Serial.println("Meaurement not started!\n");
         }
     else
         {
-        Serial.println("7100 Particle Sensor connected successfully!\n");
-        }*/
-
-    Serial.println("7100 Particle Sensor connected successfully!\n");
+        Serial.println("Measurement triggered!\n");
+        }
 
     delay (2000);
     }
