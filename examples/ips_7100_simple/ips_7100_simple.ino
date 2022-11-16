@@ -34,6 +34,7 @@ using namespace McciCatenaIps7100;
 
 cIPS7100 gIps {Wire};
 
+bool fParticle;
 /****************************************************************************\
 |
 |   Code.
@@ -59,25 +60,30 @@ void setup()
     // Initiate USB serial at 115200 baud
     Serial.begin(115200);
     while (! Serial);
-    Serial.println("\n****  7100 Particle Sensor I2C Example ****");
+    Serial.println("\n**** 7100 Particle Sensor I2C Example ****");
     // Wait on IPS boot
     delay(1000);
 
-    while(!gIps.begin())
+    if (! gIps.begin())
         {
         Serial.println("7100 Particle Sensor not connected!\n");
-        delay(1000);
-        }
-
-    Serial.println("7100 Particle Sensor connected successfully!\n");
-
-    if (!gIps.startMeasurement(1))
-        {
-        Serial.println("Meaurement not started!\n");
+        fParticle = false;
         }
     else
         {
-        Serial.println("Measurement triggered!\n");
+        Serial.println("7100 Particle Sensor connected successfully!\n");
+        fParticle = true;
+
+        if (!gIps.startMeasurement(1))
+            {
+            Serial.println("Meaurement not started!\n");
+            }
+        else
+            {
+            Serial.println("Measurement triggered!\n");
+            }
+
+        Serial.println("The measured PM and PC values are:\n");
         }
 
     delay (2000);
@@ -99,79 +105,71 @@ void loop()
     {
     // Get new IPS sensor readings
     // Not meant to run more than once per second
-    gIps.updateData();
+    if (fParticle)
+        {
+        gIps.updateData();
 
-    // Print sensor status
-    unsigned short int status = gIps.getStatus();
-    Serial.print("STATUS  : ");
-    Serial.println(status);
+        // Print PM1.0 via USB serial
+        Serial.print("PM0.1   : ");
+        Serial.println(gIps.getPM01Data());
 
-    // Print Vref value
-    unsigned short int vref = gIps.getVref();
-    Serial.print("Vref    : ");
-    Serial.println(vref);
-    Serial.println("");
+        // Print PM1.0 via USB serial
+        Serial.print("PM0.3   : ");
+        Serial.println(gIps.getPM03Data());
 
-    // Print PM1.0 via USB serial
-    Serial.print("PM0.1   : ");
-    Serial.println(gIps.getPM01Data());
+        // Print PM1.0 via USB serial
+        Serial.print("PM0.5   : ");
+        Serial.println(gIps.getPM05Data());
 
-    // Print PM1.0 via USB serial
-    Serial.print("PM0.3   : ");
-    Serial.println(gIps.getPM03Data());
+        // Print PM1.0 via USB serial
+        Serial.print("PM1.0   : ");
+        Serial.println(gIps.getPM10Data());
 
-    // Print PM1.0 via USB serial
-    Serial.print("PM0.5   : ");
-    Serial.println(gIps.getPM05Data());
+        // Print PM2.5 via USB serial
+        Serial.print("PM2.5   : ");
+        Serial.println(gIps.getPM25Data());
 
-    // Print PM1.0 via USB serial
-    Serial.print("PM1.0   : ");
-    Serial.println(gIps.getPM10Data());
+        // Print PM10 via USB serial
+        Serial.print("PM5.0   : ");
+        Serial.println(gIps.getPM50Data());
 
-    // Print PM2.5 via USB serial
-    Serial.print("PM2.5   : ");
-    Serial.println(gIps.getPM25Data());
+        // Print PM10 via USB serial
+        Serial.print("PM10    : ");
+        Serial.println(gIps.getPM100Data());
+        Serial.println("");
 
-    // Print PM10 via USB serial
-    Serial.print("PM5.0   : ");
-    Serial.println(gIps.getPM50Data());
+        // Print PC1.0 via USB serial
+        Serial.print("PC0.1   : "); 
+        Serial.println(gIps.getPC01Data());
 
-    // Print PM10 via USB serial
-    Serial.print("PM10    : ");
-    Serial.println(gIps.getPM100Data());
-    Serial.println("");
+        // Print PC1.0 via USB serial
+        Serial.print("PC0.3   : "); 
+        Serial.println(gIps.getPC03Data());
 
-    // Print PC1.0 via USB serial
-    Serial.print("PC0.1   : "); 
-    Serial.println(gIps.getPC01Data());
+        // Print PC1.0 via USB serial
+        Serial.print("PC0.5   : "); 
+        Serial.println(gIps.getPC05Data());
 
-    // Print PC1.0 via USB serial
-    Serial.print("PC0.3   : "); 
-    Serial.println(gIps.getPC03Data());
+        // Print PC1.0 via USB serial
+        Serial.print("PC1.0   : "); 
+        Serial.println(gIps.getPC10Data());
 
-    // Print PC1.0 via USB serial
-    Serial.print("PC0.5   : "); 
-    Serial.println(gIps.getPC05Data());
+        // Print PC1.0 via USB serial
+        Serial.print("PC2.5   : "); 
+        Serial.println(gIps.getPC25Data());
 
-    // Print PC1.0 via USB serial
-    Serial.print("PC1.0   : "); 
-    Serial.println(gIps.getPC10Data());
+        // Print PC1.0 via USB serial
+        Serial.print("PC5.0   : "); 
+        Serial.println(gIps.getPC50Data());
 
-    // Print PC1.0 via USB serial
-    Serial.print("PC2.5   : "); 
-    Serial.println(gIps.getPC25Data());
+        // Print PC1.0 via USB serial
+        Serial.print("PC10    : "); 
+        Serial.println(gIps.getPC100Data());
+    
+        Serial.println("");
+        Serial.println("##########################################");
+        Serial.println("");
 
-    // Print PC1.0 via USB serial
-    Serial.print("PC5.0   : "); 
-    Serial.println(gIps.getPC50Data());
-
-    // Print PC1.0 via USB serial
-    Serial.print("PC10    : "); 
-    Serial.println(gIps.getPC100Data());
-
-    Serial.println("");
-    Serial.println("##########################################");
-    Serial.println("");
-
-    delay(3000);
+        delay(3000);
+        }
     }

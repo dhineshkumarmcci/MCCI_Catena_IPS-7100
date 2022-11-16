@@ -23,12 +23,6 @@ Author:
 #include <cstdint>
 #include <Wire.h>
 
-union bytesToPM
-    {
-    float value;
-    unsigned char byte[4];
-    };
-
 /// \brief namespace for this library
 namespace McciCatenaIps7100 {
 
@@ -75,11 +69,11 @@ static constexpr std::uint32_t kVersion = makeVersion(1,0,0,1);
 // for CRC16 checksum
 #define CRC16 0x8408
 
-/*union bytesToPM
+union bytesToPM
     {
     float value;
-    unsigned char byte[4];
-    };*/
+    std::uint8_t pByte[4];
+    };
 
 /// \brief instance object for IPS-7100 Sensor
 class cIPS7100
@@ -133,7 +127,7 @@ public:
         SetVref                                 =   0x29,       ///< Set sensitivity control voltage
         SetFan                                  =   0x2B,       ///< Enable or disable fan
         SetCleaning                             =   0x2C,       ///< Enable or disable cleaning
-        Reset                                   =   0x2D,       ///< Resets the sensor module 
+        SoftReset                                   =   0x2D,       ///< Resets the sensor module 
         FactoryReset                            =   0x2E,       ///< Restore all factory default settings
         ReadCleaningInterval                    =   0x61,       ///< Read cleaning interval
         ReadDataUnit                            =   0x64,       ///< Read PC and PM data unit
@@ -231,28 +225,28 @@ public:
     void updateData();
 
     /// \brief Return PC value
-    unsigned long *getPCData();
+    std::uint32_t *getPCData();
 
     /// \brief Return PC value of range: ≤0.1um 
-    unsigned long getPC01Data();
+    std::uint32_t getPC01Data();
 
     /// \brief Return PC value of range: 0.1 - 0.3um
-    unsigned long getPC03Data();
+    std::uint32_t getPC03Data();
 
     /// \brief Return PC value of range: 0.3 - 0.5um
-    unsigned long getPC05Data();
+    std::uint32_t getPC05Data();
 
     /// \brief Return PC value of range: 0.5 - 1.0um
-    unsigned long getPC10Data();
+    std::uint32_t getPC10Data();
 
     /// \brief Return PC value of range: 1.0 - 2.5um
-    unsigned long getPC25Data();
+    std::uint32_t getPC25Data();
 
     /// \brief Return PC value of range: 2.5 - 5.0um
-    unsigned long getPC50Data();
+    std::uint32_t getPC50Data();
 
     /// \brief Return PC value of range: 5.0 - 10um
-    unsigned long getPC100Data();
+    std::uint32_t getPC100Data();
 
     /// \brief Return PM value
     float *getPMData();
@@ -279,21 +273,31 @@ public:
     float getPM100Data();
 
     /// \brief Return voltage reference
-    int getVref();
+    std::uint16_t getVref();
 
     /// \brief Return current status of sensor 
-    int getStatus();
+    std::uint16_t getStatus();
+
+    /// \brief soft reset the sensor module
+    ///
+    /// \return
+    ///     \c true for success, \c false for failure.
+    ///
+    bool reset();
 
     ///
-    /// \brief Return true if the fan is enabled
+    /// \brief enable or disable fan
     ///
     /// \param [in] status is the new state
     /// status '0' for disable and status '1'for enable
     ///
+    /// \return
+    ///     \c true for success, \c false for failure.
+    ///
     bool enableFan(bool status);
 
     ///
-    /// \brief Return true for a successful write
+    /// \brief start measurement in required speed
     ///
     /// \param [in] timer is the measurement timer
     /// timer '0' for stop measurement
@@ -301,67 +305,86 @@ public:
     /// timer '2' for 500ms
     /// timer '3' for 1000ms
     ///
-    bool startMeasurement(int timer);
+    /// \return
+    ///     \c true for success, \c false for failure.
+    ///
+    bool startMeasurement(uint8_t timer);
 
     ///
-    /// \brief Return true if the power saving mode is enabled
+    /// \brief enable or disable power saving mode
     ///
     /// \param [in] status is the new state
     /// status '0' for disable and status '1'for enable
+    ///
+    /// \return
+    ///     \c true for success, \c false for failure.
     ///
     bool enablePowerSavingMode(bool status);
 
     ///
-    /// \brief Return true if the fan is enabled
+    /// \brief enable or disable clean
     ///
     /// \param [in] status is the new state
     /// status '0' for disable and status '1'for enable
     ///
+    /// \return
+    ///     \c true for success, \c false for failure.
+    ///
     bool enableCleaning(bool status);
 
     ///
-    /// \brief Return true if the fan is enabled
+    /// \brief set the unit for particle data
     ///
     /// \param [in] unit is measuring unit for PC and PM values
     /// PC units: unit '0' for '#/L' unit '1' for '#/ft3' unit '2' for ' #/m3' unit '3' for '#/L'
     /// PM units: unit '0' for 'ug/m3' unit '1' for 'ug/ft3' unit '2' for 'ug/m3' unit '3' for 'ug/L'
     ///
-    bool setDataUnit(int unit);
+    /// \return
+    ///     \c true for success, \c false for failure.
+    ///
+    bool setDataUnit(std::uint8_t unit);
 
     ///
-    /// \brief Return PC and PM data unit
+    /// \brief get the unit for particle sensor
     ///
-    int getDataUnit();
+    std::uint16_t getDataUnit();
 
     ///
-    /// \brief Return true if the fan is enabled
+    /// \brief set a cleaning interval for sensor module
     ///
     /// \param [in] interval is period of time between cleaning in seconds
     /// Default cleaning interval is 604800 (1 Week)
     ///
-    bool setCleaningInterval(unsigned long interval);
+    /// \return
+    ///     \c true for success, \c false for failure.
+    ///
+    bool setCleaningInterval(std::uint32_t interval);
 
     ///
-    /// \brief Return cleaning interval
+    /// \brief get a cleaning interval for sensor module
     ///
-    unsigned long getCleaningInterval();
+    std::uint32_t getCleaningInterval();
 
     ///
-    /// \brief Read serial number
+    /// \brief read serial number of sensor module
     ///
     /// \param [in] data is a buffer to store serial number
     ///
     void getSerial(uint8_t* data);
 
     ///
-    /// \brief Read version number
+    /// \brief read version number
     ///
     /// \param [in] data is a buffer to store version number
     ///
     void getVersion(uint8_t* data);
 
     ///
-    /// \brief Read event status
+    /// \brief read PM event status
+    ///
+    /// \return
+    ///     \c 0 for nothing, \c 1 for event,
+    ///     \c 2 for smoke, \c 3 for vape.
     ///
     uint16_t getEventStatus();
 
@@ -417,7 +440,7 @@ protected:
     ///     \c true for success, \c false for failure. The
     ///     last error is set in case of error.
     ///
-    bool readResponse(cIPS7100::Command command, int nBuffer, std::uint8_t *pBuffer, bool checksum = false);
+    bool readResponse(cIPS7100::Command command, size_t nBuffer, std::uint8_t *pBuffer, bool checksum = false);
 
     ///
     /// \brief Write a byte of command.
@@ -429,14 +452,38 @@ protected:
     ///     \c true for success, \c false for failure. The
     ///     last error is set in case of error.
     ///
-    bool writeCommand(cIPS7100::Command command, unsigned char value);
+    bool writeCommand(cIPS7100::Command command, std::uint8_t value);
+
+    ///
+    /// \brief Write a byte of command (for cleaning interval).
+    ///
+    /// \param [in] command indicates the write operation to be performed
+    /// \param [in] value is the value to be written (interval).
+    ///
+    /// \return
+    ///     \c true for success, \c false for failure. The
+    ///     last error is set in case of error.
+    ///
+    bool writeCommand(cIPS7100::Command command, std::uint32_t value);
+
+
+    ///
+    /// \brief Write a byte of command (for reset).
+    ///
+    /// \param [in] command indicates the write operation to be performed
+    ///
+    /// \return
+    ///     \c true for success, \c false for failure. The
+    ///     last error is set in case of error.
+    ///
+    bool writeCommand(cIPS7100::Command command);
 
     /// \brief Return checksum.
     ///
     /// \param [in] byte points to the buffer to receive the data
     /// \param [in] lenght is the number of bytes to read.
     ///
-    uint16_t getChecksum(uint8_t *byte, int lenght);
+    uint16_t getChecksum(uint8_t *byte, uint8_t lenght);
 
     ///
     /// \brief Make sure the driver is running
@@ -463,14 +510,14 @@ protected:
 private:
     TwoWire *m_wire;                                        ///< pointer to bus to be used for this device
     std::uint32_t m_tReady;                                 ///< estimated time next measurement will be ready (millis)
-    unsigned long m_pcValues[7] = {0, 0, 0, 0, 0, 0, 0};    ///< buffer to store PC values
+    std::uint32_t m_pcValues[7] = {0, 0, 0, 0, 0, 0, 0};    ///< buffer to store PC values
     float m_pmValues[7] = {0, 0, 0, 0, 0, 0, 0};            ///< buffer to store PM values
     uint16_t m_eventStatus = 0;                             ///< event status
     Address m_address;                                      ///< I2C address to be used
     Pin_t m_pinReady;                                       ///< alert pin, or -1 if none.
     Error m_lastError;                                      ///< last error.
-    State m_state;                                           ///< current state
-        //{ State::Uninitialized };                           ///< initially not yet started.
+    State m_state                                           ///< current state
+        { State::Uninitialized };                           ///< initially not yet started.
     };
 
 } // end namespace McciCatenaIps7100

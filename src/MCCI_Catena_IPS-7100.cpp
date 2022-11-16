@@ -44,10 +44,11 @@ bool cIPS7100::begin()
     this->m_wire->begin();
     this->setState(State::Initial);
 
-    return true;
+    bool result = this->reset();
+    return result;
     }
 
-bool cIPS7100::startMeasurement(int timer)
+bool cIPS7100::startMeasurement(uint8_t timer)
     {
     bool result = this->writeCommand(Command::StartStop, timer);
     this->setState(State::Triggered);
@@ -58,19 +59,29 @@ bool cIPS7100::startMeasurement(int timer)
 void cIPS7100::end()
     {
     if (this->isRunning())
+        {
         this->setState(State::End);
+        }
     }
 
-bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBuffer, bool checksum)
+bool cIPS7100::reset()
+    {
+    if (this->writeCommand(cIPS7100::Command::SoftReset))
+        {
+        delay(5000);
+        return true;
+        }
+    else
+        return false;
+    }
+
+bool cIPS7100::readResponse(cIPS7100::Command command, size_t nBuffer, std::uint8_t *pBuffer, bool checksum)
     {
     bool checksumPass = false;
-    unsigned nResult;
-    uint8_t nReadFrom;
 
     auto const state = this->getState();
     if (state != State::Triggered)
         {
-        Serial.println("70");
         return this->setLastError(Error::NotMeasuring);
         }
 
@@ -81,34 +92,30 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
 
         if (this->m_wire->endTransmission() != 0)
             {
-            Serial.println("81");
             return this->setLastError(Error::CommandWriteFailed);
             }
 
-        nReadFrom = this->m_wire->requestFrom((uint8_t) Address::IPS7100, (uint8_t) nBuffer);
+        auto nReadFrom = this->m_wire->requestFrom((uint8_t) Address::IPS7100, (uint8_t) nBuffer);
 
         if (nReadFrom != nBuffer)
             {
-            Serial.println("89");
             return this->setLastError(Error::I2cReadRequest);
             }
 
-        nResult = this->m_wire->available();
+        auto const nResult = unsigned (this->m_wire->available());
 
         if (nResult > nBuffer)
             {
-            Serial.println("97");
             return this->setLastError(Error::I2cReadLong);
             }
 
-        for (unsigned n = 0; n < nResult; n++)
+        for (unsigned i = 0; i < nResult; ++i)
             {
-            pBuffer[n] = this->m_wire->read();
+            pBuffer[i] = this->m_wire->read();
             }
 
         if (nResult != nBuffer)
             {
-            Serial.println("109");
             return this->setLastError(Error::I2cReadShort);
             }
 
@@ -161,11 +168,43 @@ bool cIPS7100::readResponse(cIPS7100::Command command, int nBuffer, uint8_t *pBu
         }
     }
 
-boolean cIPS7100::writeCommand(cIPS7100::Command command, unsigned char value)
+// to write reset
+bool cIPS7100::writeCommand(cIPS7100::Command command)
+    {
+    this->m_wire->beginTransmission(std::uint8_t(this->m_address));
+    this->m_wire->write(std::uint8_t(command));
+
+    if (this->m_wire->endTransmission() != 0)
+        {
+        return this->setLastError(Error::CommandWriteFailed);
+        }
+
+    return true;
+    }
+
+bool cIPS7100::writeCommand(cIPS7100::Command command, std::uint8_t value)
     {
     this->m_wire->beginTransmission(std::uint8_t(this->m_address));
     this->m_wire->write(std::uint8_t(command));
     this->m_wire->write(value);
+
+    if (this->m_wire->endTransmission() != 0)
+        {
+        return this->setLastError(Error::CommandWriteFailed);
+        }
+
+    return true;
+    }
+
+// to write cleaning interval
+bool cIPS7100::writeCommand(cIPS7100::Command command, std::uint32_t value)
+    {
+    this->m_wire->beginTransmission(std::uint8_t(this->m_address));
+    this->m_wire->write(std::uint8_t(command));
+    this->m_wire->write((std::uint8_t)((value >> 24) & 0xFF));
+    this->m_wire->write((std::uint8_t)((value >> 16) & 0xFF));
+    this->m_wire->write((std::uint8_t)((value >> 8) & 0xFF));
+    this->m_wire->write((std::uint8_t)(value & 0xFF));
 
     if (this->m_wire->endTransmission() != 0)
         {
@@ -182,7 +221,7 @@ void cIPS7100::updateData()
 
     this->readResponse(Command::ReadPC, sizeof(pcRawValues), pcRawValues, true);
 
-    // Assemble PC values (unsigned long) from 4 bytes via bitwise
+    // Assemble PC values (uint32_t) from 4 bytes via bitwise
     this->m_pcValues[0] = pcRawValues[3] | (pcRawValues[2] << 8) | (pcRawValues[1] << 16) | (pcRawValues[0] << 24);
     this->m_pcValues[1] = pcRawValues[7] | (pcRawValues[6] << 8) | (pcRawValues[5] << 16) | (pcRawValues[4] << 24);
     this->m_pcValues[2] = pcRawValues[11] | (pcRawValues[10] << 8) | (pcRawValues[9] << 16) | (pcRawValues[8] << 24);
@@ -197,12 +236,12 @@ void cIPS7100::updateData()
     this->readResponse(Command::ReadPM, sizeof(pmRawValues), pmRawValues, true);
 
     // Assemble PM values (float) from 4 bytes via union
-    for (size_t i = 0; i < 7; ++i)
+    for (unsigned i = 0; i < 7; ++i)
         {
         bytesToPM PM;
-        for (size_t j = 0; j < 4; ++j)
+        for (unsigned j = 0; j < 4; ++j)
             {
-            PM.byte[j] = pmRawValues[j + (i * 4)];
+            PM.pByte[j] = pmRawValues[j + (i * 4)];
             }
 
         this->m_pmValues[i] = PM.value;
@@ -213,20 +252,20 @@ void cIPS7100::updateData()
     }
 
 // Get CRC16 checksum
-uint16_t cIPS7100::getChecksum(uint8_t *byte, int length)
+uint16_t cIPS7100::getChecksum(uint8_t *pByte, uint8_t length)
     {
-    if (byte == nullptr)
+    if (pByte == nullptr)
         {
         return this->setLastError(Error::InternalInvalidParameter);
         }
 
-    int i, j;
+    unsigned i, j;
     uint16_t data = 0;
     uint16_t crc = 0xffff;
 
     for (j = 0; j < length; j++)
         {
-        data = (uint16_t)0xff & byte[j];
+        data = (uint16_t)0xff & pByte[j];
         for (i = 0; i < 8; i++, data >>= 1)
             {
             if ((crc & 0x0001) ^ (data & 0x0001))
@@ -243,42 +282,42 @@ uint16_t cIPS7100::getChecksum(uint8_t *byte, int length)
     return crc;
     }
 
-unsigned long *cIPS7100::getPCData()
+std::uint32_t *cIPS7100::getPCData()
     {
     return this->m_pcValues;
     };
 
-unsigned long cIPS7100::getPC01Data()
+std::uint32_t cIPS7100::getPC01Data()
     {
     return this->m_pcValues[0];
     };
 
-unsigned long cIPS7100::getPC03Data()
+std::uint32_t cIPS7100::getPC03Data()
     {
     return this->m_pcValues[1];
     };
 
-unsigned long cIPS7100::getPC05Data()
+std::uint32_t cIPS7100::getPC05Data()
     {
     return this->m_pcValues[2];
     };
 
-unsigned long cIPS7100::getPC10Data()
+std::uint32_t cIPS7100::getPC10Data()
     {
     return this->m_pcValues[3];
     };
 
-unsigned long cIPS7100::getPC25Data()
+std::uint32_t cIPS7100::getPC25Data()
     {
     return this->m_pcValues[4];
     };
 
-unsigned long cIPS7100::getPC50Data()
+std::uint32_t cIPS7100::getPC50Data()
     {
     return this->m_pcValues[5];
     };
 
-unsigned long cIPS7100::getPC100Data()
+std::uint32_t cIPS7100::getPC100Data()
     {
     return this->m_pcValues[6];
     };
@@ -328,31 +367,31 @@ uint16_t cIPS7100::getEventStatus()
     return this->m_eventStatus;
     }
 
-int cIPS7100::getVref()
+std::uint16_t cIPS7100::getVref()
     {
     // Read Vref
-    uint8_t data[4];
-    unsigned short int vref;
+    uint8_t pData[4];
+    uint16_t vref;
 
-    this->readResponse(Command::ReadVref, sizeof(data), data, true);
+    this->readResponse(Command::ReadVref, sizeof(pData), pData, true);
 
-    vref = data[1] | (data[0] << 8);
+    vref = pData[1] | (pData[0] << 8);
     return vref;
     }
 
-int cIPS7100::getStatus()
+std::uint16_t cIPS7100::getStatus()
     {
     // Read Status
-    uint8_t data[3];
-    unsigned short int status;
+    uint8_t pData[3];
+    uint16_t status;
 
-    this->readResponse(Command::ReadStatus, sizeof(data), data, true);
+    this->readResponse(Command::ReadStatus, sizeof(pData), pData, true);
 
-    status = data[0];
+    status = pData[0];
     return status;
     }
 
-bool cIPS7100::setDataUnit(int unit)
+bool cIPS7100::setDataUnit(std::uint8_t unit)
     {
     // Set data unit
     bool result;
@@ -369,28 +408,44 @@ bool cIPS7100::setDataUnit(int unit)
     return result;
     }
 
-int cIPS7100::getDataUnit()
+std::uint16_t cIPS7100::getDataUnit()
     {
     // Get data unit for PC and PM values
-    uint8_t data[3];
-    unsigned short int unit;
+    uint8_t pData[3];
+    uint16_t unit;
 
-    this->readResponse(Command::ReadDataUnit, sizeof(data), data, true);
+    this->readResponse(Command::ReadDataUnit, sizeof(pData), pData, true);
 
-    unit = data[0];
+    unit = pData[0];
     return unit;
     }
 
-void cIPS7100::getSerial(uint8_t* data)
+bool cIPS7100::setCleaningInterval(std::uint32_t interval)
     {
-    this->readResponse(Command::ReadSerialNumber, sizeof(data), data, true);
-    data[17] = 0;
+    bool result = this->writeCommand(Command::SetCleaningInterval, interval);
+
+    return result;
     }
 
-void cIPS7100::getVersion(uint8_t* data)
+std::uint32_t cIPS7100::getCleaningInterval()
     {
-    this->readResponse(Command::ReadRevisionNumber, sizeof(data), data, true);
-    data[7] = 0;
+    uint8_t rawCleanValues[4];
+    this->readResponse(Command::ReadCleaningInterval, sizeof(rawCleanValues), rawCleanValues, true);
+
+    // Assemble PC values (uint32_t) from 4 bytes via bitwise
+    return rawCleanValues[3] | (rawCleanValues[2] << 8) | (rawCleanValues[1] << 16) | (rawCleanValues[0] << 24);
+    };
+
+void cIPS7100::getSerial(uint8_t* pData)
+    {
+    this->readResponse(Command::ReadSerialNumber, sizeof(pData), pData, true);
+    pData[17] = 0;
+    }
+
+void cIPS7100::getVersion(uint8_t* pData)
+    {
+    this->readResponse(Command::ReadRevisionNumber, sizeof(pData), pData, true);
+    pData[7] = 0;
     }
 
 bool cIPS7100::enableFan(bool status)
@@ -399,11 +454,11 @@ bool cIPS7100::enableFan(bool status)
     // Enable or disable fan
     if (status)
         {
-        result = this->writeCommand(Command::SetFan, 1);
+        result = this->writeCommand(Command::SetFan, (std::uint8_t)1);
         }
     else
         {
-        result = this->writeCommand(Command::SetFan, 0);
+        result = this->writeCommand(Command::SetFan, (std::uint8_t)0);
         }
 
     return result;
@@ -415,11 +470,13 @@ bool cIPS7100::enablePowerSavingMode(bool status)
     // Enable or disable power saving mode
     if (status)
         {
-        result = this->writeCommand(Command::PowerSavingMode, 1);
+        result = this->writeCommand(Command::PowerSavingMode, (std::uint8_t)1);
+        this->setState(State::Idle);
         }
     else
         {
-        result = this->writeCommand(Command::PowerSavingMode, 0);
+        result = this->writeCommand(Command::PowerSavingMode, (std::uint8_t)0);
+        this->setState(State::Triggered);
         }
 
     return result;
@@ -431,11 +488,11 @@ bool cIPS7100::enableCleaning(bool status)
     // Enable or disable cleaning
     if (status)
         {
-        result = this->writeCommand(Command::SetCleaning, 1);
+        result = this->writeCommand(Command::SetCleaning, (std::uint8_t)1);
         }
     else
         {
-        result = this->writeCommand(Command::SetCleaning, 0);
+        result = this->writeCommand(Command::SetCleaning, (std::uint8_t)0);
         }
 
     return result;
